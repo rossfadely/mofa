@@ -18,6 +18,8 @@ class Mofa(object):
     latents:     (K,M,N) array of latent variables
     latent_covs: (K,M,M,N) array of latent covariances
     lambdas:     (K,M,D) array of loadings
+    psis:        (K,D) array of diagonal variance values
+    rs:          (K,N) array of responsibilities
     amps:        (K) array of component amplitudes
 
     TODO - LogL and convergence
