@@ -7,28 +7,22 @@ from scipy.linalg import inv
 from matplotlib.patches import Ellipse
 
 
-import time
-
-__doc__ = """
-
-Define -
-
-K: Number of components
-M: Latent dimensionality
-data: (D,N) array of observations
-latent:  (K,N) array of latent variables
-lam:  (K,M,D) array of loadings
-amps: (K,1) array of component amplitudes 
-
-"""
-
 class Mofa(object):
     """
+    Mixture of Factor Analyzers
+    
+    K:           Number of components
+    D:           Data dimensionality
+    M:           Latent dimensionality
+    data:        (D,N) array of observations
+    latents:     (K,M,N) array of latent variables
+    latent_covs: (K,M,M,N) array of latent covariances
+    lambdas:     (K,M,D) array of loadings
+    amps:        (K) array of component amplitudes
 
-    TODO - add checks on inputs
+    TODO - LogL and convergence
     """
-
-    def __init__(self,data,K,M=None):
+    def __init__(self,data,K,M,lock_psis=False):
 
         self.K = K 
         self.M = M 
@@ -36,8 +30,8 @@ class Mofa(object):
         self._data = np.atleast_2d(data)
         self.N = self._data.shape[0]
         self.D = self._data.shape[1]
-        self._datadataT = np.dot(self._data,self._data.T)
-        self._datasq = self._data ** 2.
+
+	self.lock_psis = lock_psis
 
         # Run K-means
         self.means = kmeans(data,self.K)[0]
@@ -47,20 +41,20 @@ class Mofa(object):
         self.amps /= np.sum(self.amps)
 
         # Randomly assign factor loadings
-        self.lam = np.random.randn(self.K,self.D,self.M)
+        self.lambdas = np.random.randn(self.K,self.D,self.M)
 
         # Set (high rank) variance to variance of all data
         # Do something approx. here for speed?
-        self.psi = np.var(self._data) * np.ones((self.K,self.D))
+        self.psis = np.var(self._data) * np.ones((self.K,self.D))
 
         # Set initial cov
         self.covs = np.zeros((self.K,self.D,self.D))
-	self.update_covs()
+	self._update_covs()
 
         # Empty arrays to be filled
         self.rs   = np.empty((self.K,self.N))
-        self.beta = np.zeros((self.K,self.M,self.D))
-        self.latent  = np.zeros((self.K,self.M,self.N))
+        self.betas = np.zeros((self.K,self.M,self.D))
+        self.latents  = np.zeros((self.K,self.M,self.N))
         self.latent_covs = np.zeros((self.K,self.M,self.M,self.N))
 
     def _E_step(self):
@@ -72,49 +66,52 @@ class Mofa(object):
         for k in range(self.K):
             # beta
             invcov = self._invert_cov(k)
-            self.beta[k] = np.dot(self.lam[k].T,invcov)
+            self.betas[k] = np.dot(self.lambdas[k].T,invcov)
 
             # latent values
             zeroed = (self._data - self.means[k]).T
-            self.latent[k] = np.dot(self.beta[k],zeroed)
+            self.latents[k] = np.dot(self.betas[k],zeroed)
 
             # latent cov
-	    step1   = self.latent[k, :, None, :] * self.latent[k, None, :, :]
-            step2   = np.dot(self.beta[k],self.lam[k])
+	    step1   = self.latents[k, :, None, :] * self.latents[k, None, :, :]
+            step2   = np.dot(self.betas[k],self.lambdas[k])
 	    self.latent_covs[k] = np.eye(self.M)[:,:,None] - step2[:,:,None] + step1
 
     def _M_step(self):
-        # check copy issues, and that data etc are static!!
 
-        psisum = np.zeros((self.D,self.D))
+	sumrs = np.sum(self.rs,axis=1)
         for k in range(self.K):
 
-	    sumrs_k = np.sum(self.rs[k])
-
             # means
-            step = self._data.T - np.dot(self.lam[k],self.latent[k])
-            self.means[k] = np.sum(self.rs[k] * step,axis=1) / sumrs_k
+            step = self._data.T - np.dot(self.lambdas[k],self.latents[k])
+            self.means[k] = np.sum(self.rs[k] * step,axis=1) / sumrs[k]
  
-            # lambda
+            # lambdas
             zeroed = (self._data - self.means[k]).T
 	    right  = inv(np.dot(self.latent_covs[k],self.rs[k]))
-	    left  = np.dot(zeroed[:,None,:]*self.latent[k,None,:,:],self.rs[k])
-	    self.lam[k] = np.dot(left,right)
+	    left  = np.dot(zeroed[:,None,:]*self.latents[k,None,:,:],self.rs[k])
+	    self.lambdas[k] = np.dot(left,right)
 
             # psi - not this is not in any paper MOFAAAAA!
 	    ddT  = zeroed[:,None,:] * zeroed[None,:,:]
-	    step = np.dot(self.lam[k],self.latent[k])[:,None,:] * zeroed[None,:,:]
-	    self.psi[k] = np.diag(np.dot(ddT-step,self.rs[k]) / sumrs_k)
+	    step = np.dot(self.lambdas[k],self.latents[k])[:,None,:] * zeroed[None,:,:]
+	    self.psis[k] = np.diag(np.dot(ddT-step,self.rs[k]) / sumrs[k])
 
             # amplitudes
-            self.amps[k] = np.sum(self.rs[k]) / self.N
+            self.amps[k] = sumrs[k] / self.N
 
-	self.update_covs()
+	
+	if self.lock_psis:
+	    psi = np.dot(sumrs, self.psis) / np.sum(sumrs)
+	    for k in range(self.K):
+		self.psis[k] = psi
+
+	self._update_covs()
         
-    def update_covs(self):
+    def _update_covs(self):
 	for k in range(self.K):
-	    print self.psi[k].shape
-            self.covs[k] = np.dot(self.lam[k],self.lam[k].T) + np.diag(self.psi[k])
+            self.covs[k] = np.dot(self.lambdas[k],self.lambdas[k].T) + \
+		np.diag(self.psis[k])
 
         
     def _calc_prob(self):
@@ -156,8 +153,8 @@ class Mofa(object):
         using inversion lemma
         """
         # probable slight speed up if psi kept as 1D array
-        psiI = inv(np.diag(self.psi[k]))
-        lam  = self.lam[k]
+        psiI = inv(np.diag(self.psis[k]))
+        lam  = self.lambdas[k]
         lamT = lam.T
         step = inv(np.eye(self.M) + np.dot(lamT,np.dot(psiI,lam)))
         step = np.dot(step,np.dot(lamT,psiI))
@@ -165,7 +162,7 @@ class Mofa(object):
 
 	return psiI - step
 
-    def plot_2d_ellipses(self,d1,d2):
+    def plot_2d_ellipses(self,d1,d2, **kwargs):
 	"""
 	Make a 2D plot of the model projected onto axes
 	d1 and d2.
@@ -173,7 +170,7 @@ class Mofa(object):
 	for k in range(self.K):
 	    mean = self.means[k,(d1, d2)]
 	    cov = self.covs[k][((d1, d2),(d1, d2)), ((d1, d1), (d2, d2))]
-	    self.plot_2d_ellipse(mean, cov)
+	    self.plot_2d_ellipse(mean, cov, **kwargs)
 
     def plot_2d_ellipse(self, mu, cov, ax=None, **kwargs):
 	"""
