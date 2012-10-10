@@ -96,9 +96,9 @@ class Mofa(object):
 	    self.lambdas[k] = np.dot(left,right)
 
             # psi - not this is not in any paper MOFAAAAA!
-	    ddT  = zeroed[:,None,:] * zeroed[None,:,:]
+	    zzT  = zeroed[:,None,:] * zeroed[None,:,:]
 	    step = np.dot(self.lambdas[k],self.latents[k])[:,None,:] * zeroed[None,:,:]
-	    self.psis[k] = np.diag(np.dot(ddT-step,self.rs[k]) / sumrs[k])
+	    self.psis[k] = np.diag(np.dot(zzT-step,self.rs[k]) / sumrs[k])
 
             # amplitudes
             self.amps[k] = sumrs[k] / self.N
