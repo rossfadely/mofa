@@ -11,16 +11,17 @@ class Mofa(object):
     """
     Mixture of Factor Analyzers
     
-    K:           Number of components
-    D:           Data dimensionality
-    M:           Latent dimensionality
-    data:        (D,N) array of observations
-    latents:     (K,M,N) array of latent variables
-    latent_covs: (K,M,M,N) array of latent covariances
-    lambdas:     (K,M,D) array of loadings
-    psis:        (K,D) array of diagonal variance values
-    rs:          (K,N) array of responsibilities
-    amps:        (K) array of component amplitudes
+    `K`:           Number of components
+    `M`:           Latent dimensionality
+    `D`:           Data dimensionality
+    `N`:           Number of data points
+    `data`:        (D,N) array of observations
+    `latents`:     (K,M,N) array of latent variables
+    `latent_covs`: (K,M,M,N) array of latent covariances
+    `lambdas`:     (K,M,D) array of loadings
+    `psis`:        (K,D) array of diagonal variance values
+    `rs`:          (K,N) array of responsibilities
+    `amps`:        (K) array of component amplitudes
 
     TODO - LogL and convergence
     """
