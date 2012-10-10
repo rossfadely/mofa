@@ -29,9 +29,9 @@ class Mofa(object):
         self.K = K 
         self.M = M 
 
-        self._data = np.atleast_2d(data)
-        self.N = self._data.shape[0]
-        self.D = self._data.shape[1]
+        self.data = np.atleast_2d(data)
+        self.N = self.data.shape[0]
+        self.D = self.data.shape[1]
 
 	self.lock_psis = lock_psis
 
@@ -47,7 +47,7 @@ class Mofa(object):
 
         # Set (high rank) variance to variance of all data
         # Do something approx. here for speed?
-        self.psis = np.var(self._data) * np.ones((self.K,self.D))
+        self.psis = np.var(self.data) * np.ones((self.K,self.D))
 
         # Set initial cov
         self.covs = np.zeros((self.K,self.D,self.D))
@@ -71,7 +71,7 @@ class Mofa(object):
             self.betas[k] = np.dot(self.lambdas[k].T,invcov)
 
             # latent values
-            zeroed = (self._data - self.means[k]).T
+            zeroed = (self.data - self.means[k]).T
             self.latents[k] = np.dot(self.betas[k],zeroed)
 
             # latent cov
@@ -85,11 +85,11 @@ class Mofa(object):
         for k in range(self.K):
 
             # means
-            step = self._data.T - np.dot(self.lambdas[k],self.latents[k])
+            step = self.data.T - np.dot(self.lambdas[k],self.latents[k])
             self.means[k] = np.sum(self.rs[k] * step,axis=1) / sumrs[k]
  
             # lambdas
-            zeroed = (self._data - self.means[k]).T
+            zeroed = (self.data - self.means[k]).T
 	    right  = inv(np.dot(self.latent_covs[k],self.rs[k]))
 	    left  = np.dot(zeroed[:,None,:]*self.latents[k,None,:,:],self.rs[k])
 	    self.lambdas[k] = np.dot(left,right)
@@ -120,7 +120,7 @@ class Mofa(object):
 
         logrs = []
         for k in range(self.K):
-            logrs += [np.log(self.amps[k]) + self._log_multi_gauss(k, self._data)]
+            logrs += [np.log(self.amps[k]) + self._log_multi_gauss(k, self.data)]
         logrs = np.concatenate(logrs).reshape((-1, self.K), order='F')
 
         # here lies some ghetto log-sum-exp...
