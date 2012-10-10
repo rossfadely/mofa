@@ -15,7 +15,7 @@ class Mofa(object):
     `M`:           Latent dimensionality
     `D`:           Data dimensionality
     `N`:           Number of data points
-    `data`:        (D,N) array of observations
+    `data`:        (N,D) array of observations
     `latents`:     (K,M,N) array of latent variables
     `latent_covs`: (K,M,M,N) array of latent covariances
     `lambdas`:     (K,M,D) array of loadings
@@ -23,7 +23,6 @@ class Mofa(object):
     `rs`:          (K,N) array of responsibilities
     `amps`:        (K) array of component amplitudes
 
-    TODO - LogL and convergence
     """
     def __init__(self,data,K,M,lock_psis=False):
 
@@ -60,10 +59,55 @@ class Mofa(object):
         self.latents  = np.zeros((self.K,self.M,self.N))
         self.latent_covs = np.zeros((self.K,self.M,self.M,self.N))
 
-    def _E_step(self):
+    def run_em(self, maxiter=400, tol=1e-4, verbose=True):
+        """
+        Run the EM algorithm.
 
+        :param maxiter:
+            The maximum number of iterations to try.
+
+        :param tol:
+            The tolerance on the relative change in the loss function that
+            controls convergence.
+
+        :param verbose:
+            Print all the messages?
+
+        """
+
+        L = None
+        for i in xrange(maxiter):
+            self._E_step()
+            newL = self.logLs.sum()
+            if i == 0 and verbose:
+                print("Initial NLL =", -newL)
+
+            self._M_step()
+            if L is None:
+                L = newL
+            else:
+                dL = np.abs((newL - L) / L)
+                if i > 5 and dL < tol:
+                    break
+                L = newL
+
+        if i < maxiter - 1:
+            if verbose:
+                print("EM converged after {0} iterations".format(i))
+                print("Final NLL = {0}".format(-newL))
+        else:
+            print("Warning: EM didn't converge after {0} iterations"
+                    .format(i))
+
+
+
+
+    def _E_step(self):
+        """
+        Expectation step.  See docs for details.
+        """
         # resposibilities and likelihoods
-        self.logL, rs = self._calc_prob()
+        self.logLs, rs = self._calc_prob()
         self.rs = rs.T
 
         for k in range(self.K):
@@ -81,7 +125,9 @@ class Mofa(object):
 	    self.latent_covs[k] = np.eye(self.M)[:,:,None] - step2[:,:,None] + step1
 
     def _M_step(self):
-
+        """
+        Maximization step.  See docs for details.
+        """
 	sumrs = np.sum(self.rs,axis=1)
         for k in range(self.K):
 
@@ -112,13 +158,19 @@ class Mofa(object):
 	self._update_covs()
         
     def _update_covs(self):
+        """
+        Update self.cov for responsibility, logL calc
+        """
 	for k in range(self.K):
             self.covs[k] = np.dot(self.lambdas[k],self.lambdas[k].T) + \
 		np.diag(self.psis[k])
 
         
     def _calc_prob(self):
-
+        """
+        Calculate log likelihoods, responsibilites for each datum
+        under each component.
+        """
         logrs = []
         for k in range(self.K):
             logrs += [np.log(self.amps[k]) + self._log_multi_gauss(k, self.data)]
@@ -133,17 +185,14 @@ class Mofa(object):
 
         
     def _log_multi_gauss(self, k, X):
-        # X.shape == (N,D)
-        # self.means.shape == (D,K)
-        # self.covs[k].shape == (D,D)
+        """
+        Gaussian log likelihood of the data for component k.
+        """
         sgn, logdet = np.linalg.slogdet(self.covs[k])
         if sgn <= 0:
             return -np.inf * np.ones(X.shape[0])
 
-        # X1.shape == (N,D)
         X1 = X - self.means[k]
-
-        # X2.shape == (N,D)
         X2 = np.linalg.solve(self.covs[k], X1.T).T
 
         p = -0.5 * np.sum(X1 * X2, axis=1)
@@ -196,3 +245,8 @@ class Mofa(object):
 	    ax = pl.gca()
 	ax.add_patch(ellipsePlot)
 
+    def lnprob(self, x):
+        """
+        Alias for calculating log likelihoods
+        """
+        return self._calc_prob(x)[0]
