@@ -132,8 +132,8 @@ class Mofa(object):
         for k in range(self.K):
 
             # means
-            lambdaslatents = np.dot(self.lambdas[k], self.latents[k])
-            self.means[k] = np.sum(self.rs[k] * (self.dataT - lambdaslatents),
+            lambdalatents = np.dot(self.lambdas[k], self.latents[k])
+            self.means[k] = np.sum(self.rs[k] * (self.dataT - lambdalatents),
                                    axis=1) / sumrs[k]
  
             # lambdas
@@ -144,7 +144,7 @@ class Mofa(object):
                                                 self.rs[k])))
 
             # psis - not this is not in any paper MOFAAAAA!
-	    self.psis[k] = np.diag(np.dot((zeroed - lambdaslatents)[:,None,:] *
+	    self.psis[k] = np.diag(np.dot((zeroed - lambdalatents)[:,None,:] *
                                           zeroed[None,:,:],
                                           self.rs[k]) / sumrs[k])
 
