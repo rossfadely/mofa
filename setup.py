@@ -23,11 +23,11 @@ setup(
     author="Ross Fadely, David W. Hogg & Dan Foreman-Mackey",
     packages=["mofa"],
     url="https://github.com/dfm/mofa",
-    # license="",  # Short name of license.
+    license="MIT",  # Short name of license.
     description=mofa.__doc__,
     long_description=open("README.rst").read(),
-    # package_data={"": ["LICENSE.rst", "AUTHORS.rst"]},
-    # include_package_data=True,
+    package_data={"": ["LICENSE.rst", "AUTHORS.rst"]},
+    include_package_data=True,
     install_requires=["numpy", "scipy"],
     classifiers=[
         # "Development Status :: 1 - Planning",
