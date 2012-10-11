@@ -1,6 +1,6 @@
-
 import numpy as np
 import matplotlib.pyplot as pl
+import time
 
 from scipy.cluster.vq import kmeans
 from scipy.linalg import inv
@@ -44,11 +44,12 @@ class Mofa(object):
         self.amps /= np.sum(self.amps)
 
         # Randomly assign factor loadings
-        self.lambdas = np.random.randn(self.K,self.D,self.M)
+	vd = np.var(self.data)
+        self.lambdas = 2. * vd * np.random.randn(self.K,self.D,self.M)
 
         # Set (high rank) variance to variance of all data
         # Do something approx. here for speed?
-        self.psis = np.var(self.data) * np.ones((self.K,self.D))
+        self.psis = 0.5 * vd * np.ones((self.K,self.D))
 
         # Set initial cov
         self.covs = np.zeros((self.K,self.D,self.D))
@@ -131,22 +132,29 @@ class Mofa(object):
 	sumrs = np.sum(self.rs,axis=1)
         for k in range(self.K):
 
+            t0 = time.time()
             # means
-            lambdaslatents = np.dot(self.lambdas[k], self.latents[k])
-            self.means[k] = np.sum(self.rs[k] * (self.dataT - lambdaslatents),
+            lambdalatents = np.dot(self.lambdas[k], self.latents[k])
+            self.means[k] = np.sum(self.rs[k] * (self.dataT - lambdalatents),
                                    axis=1) / sumrs[k]
- 
+            print 'means',time.time() - t0
+
+            t0 = time.time()
             # lambdas
             zeroed = self.dataT - self.means[k, :, None]
 	    self.lambdas[k] = np.dot(np.dot(zeroed[:,None,:] * self.latents[k,None,:,:],
                                             self.rs[k]),
                                      inv(np.dot(self.latent_covs[k],
                                                 self.rs[k])))
+            print 'lambdas',time.time() - t0
 
+
+            t0 = time.time()
             # psis - not this is not in any paper MOFAAAAA!
-	    self.psis[k] = np.diag(np.dot(zeroed[:,None,:] * zeroed[None,:,:] -
-                                          lambdaslatents[:,None,:] * zeroed[None,:,:],
+	    self.psis[k] = np.diag(np.dot((zeroed - lambdalatents)[:,None,:] *
+                                          zeroed[None,:,:],
                                           self.rs[k]) / sumrs[k])
+            print 'psis',time.time() - t0
 
             # amplitudes
             self.amps[k] = sumrs[k] / self.N
@@ -190,8 +198,7 @@ class Mofa(object):
         Gaussian log likelihood of the data for component k.
         """
         sgn, logdet = np.linalg.slogdet(self.covs[k])
-        if sgn <= 0:
-            return -np.inf * np.ones(X.shape[0])
+        assert sgn > 0
 
         X1 = X - self.means[k]
         X2 = np.linalg.solve(self.covs[k], X1.T).T
