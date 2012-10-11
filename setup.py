@@ -22,7 +22,7 @@ setup(
     version=mofa.__version__,
     author="Ross Fadely, David W. Hogg & Dan Foreman-Mackey",
     packages=["mofa"],
-    url="https://github.com/dfm/mofa",
+    url="https://github.com/rossfadely/mofa",
     license="MIT",  # Short name of license.
     description=mofa.__doc__,
     long_description=open("README.rst").read(),
