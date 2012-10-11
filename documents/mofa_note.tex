@@ -9,6 +9,8 @@
 \renewcommand{\topfraction}{0.85} \renewcommand{\textfraction}{0.1} 
 \parindent=0cm
 
+\newcommand{\mofa}{\texttt{mofa}}
+\newcommand{\Mofa}{\texttt{Mofa}}
 \newcommand{\nyu}{$^1$}
 \newcommand{\mpia}{$^2$}
 \newcommand{\sdss}{{\it SDSS}}
@@ -35,6 +37,17 @@
 \begin{document}
 \maketitle
 
+\begin{abstract}
+A mixture of factor analyzers is a mixture-of-Gaussians model for a
+distribution function, but in which each Gaussian has a restricted
+number of degrees of freedom: Each component's variance tensor is the
+sum of a general low rank tensor and a diagonal (axis-aligned) tensor.
+Here we discuss the model in the context of mixtures of Gaussians.  We
+show how to fit the model to an ensemble of samples using an
+expectation-maximization algorithm.  We also introduce \mofa, a
+general, open-source, Python implementation of the model and
+algorithm.
+\end{abstract}
 
 \section{Generalities}
 
@@ -161,8 +174,9 @@ in which case we take the average value of the elements.
 
 \section{Python Implementation}
 
-Here are a list of the functions and variables in the \texttt{mofa} class, with some 
-description of what's going on.  $\star\star\star$ To be updated along with the 
+Here are a list of the functions and variables in the \Mofa\ class of
+the \mofa\ module, with some description of what's going on.
+$\star\star\star$ To be updated along with the
 code. $\star\star\star$.
 
 \subsection{Variables}

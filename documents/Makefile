@@ -1,4 +1,4 @@
-all: sdss_mixtures.pdf
+all: mofa_note.pdf
 
 %.pdf: %.tex
 	pdflatex $<

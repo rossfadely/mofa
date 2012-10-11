@@ -4,3 +4,5 @@
 *.png
 *.pdf
 *.dat
+*.aux
+*.log

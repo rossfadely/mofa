@@ -1,4 +1,3 @@
-
 import numpy as np
 import matplotlib.pyplot as pl
 import time
@@ -45,11 +44,12 @@ class Mofa(object):
         self.amps /= np.sum(self.amps)
 
         # Randomly assign factor loadings
-        self.lambdas = np.random.randn(self.K,self.D,self.M)
+	vd = np.var(self.data)
+        self.lambdas = 2. * vd * np.random.randn(self.K,self.D,self.M)
 
         # Set (high rank) variance to variance of all data
         # Do something approx. here for speed?
-        self.psis = np.var(self.data) * np.ones((self.K,self.D))
+        self.psis = 0.5 * vd * np.ones((self.K,self.D))
 
         # Set initial cov
         self.covs = np.zeros((self.K,self.D,self.D))
@@ -204,8 +204,7 @@ class Mofa(object):
         Gaussian log likelihood of the data for component k.
         """
         sgn, logdet = np.linalg.slogdet(self.covs[k])
-        if sgn <= 0:
-            return -np.inf * np.ones(X.shape[0])
+        assert sgn > 0
 
         X1 = X - self.means[k]
         X2 = np.linalg.solve(self.covs[k], X1.T).T
