@@ -44,12 +44,12 @@ class Mofa(object):
         self.amps /= np.sum(self.amps)
 
         # Randomly assign factor loadings
-	vd = np.var(self.data)
-        self.lambdas = np.random.randn(self.K,self.D,self.M)
+	minvar = np.min(np.var(self.data, axis=0))
+        self.lambdas = 0.5 * minvar * np.random.randn(self.K,self.D,self.M)
 
         # Set (high rank) variance to variance of all data
         # Do something approx. here for speed?
-        self.psis = 0.5 * vd * np.ones((self.K,self.D))
+        self.psis = 0.5 * minvar * np.ones((self.K,self.D))
 
         # Set initial cov
         self.covs = np.zeros((self.K,self.D,self.D))
