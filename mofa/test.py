@@ -53,3 +53,5 @@ pl.title(r'Data $(D, N) = ({0}, {1})$, Model $(K, M) = ({2}, {3})$'.format(D,N,K
 pl.legend()
 fig.savefig('mofa_ex.png')
 
+print mix.lambdas
+print mix.lambdas.sum()
