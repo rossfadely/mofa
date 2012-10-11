@@ -1,6 +1,7 @@
 
 import numpy as np
 import matplotlib.pyplot as pl
+import time
 
 from scipy.cluster.vq import kmeans
 from scipy.linalg import inv
@@ -131,22 +132,29 @@ class Mofa(object):
 	sumrs = np.sum(self.rs,axis=1)
         for k in range(self.K):
 
+            t0 = time.time()
             # means
             lambdalatents = np.dot(self.lambdas[k], self.latents[k])
             self.means[k] = np.sum(self.rs[k] * (self.dataT - lambdalatents),
                                    axis=1) / sumrs[k]
- 
+            print 'means',time.time() - t0
+
+            t0 = time.time()
             # lambdas
             zeroed = self.dataT - self.means[k, :, None]
 	    self.lambdas[k] = np.dot(np.dot(zeroed[:,None,:] * self.latents[k,None,:,:],
                                             self.rs[k]),
                                      inv(np.dot(self.latent_covs[k],
                                                 self.rs[k])))
+            print 'lambdas',time.time() - t0
 
+
+            t0 = time.time()
             # psis - not this is not in any paper MOFAAAAA!
 	    self.psis[k] = np.diag(np.dot((zeroed - lambdalatents)[:,None,:] *
                                           zeroed[None,:,:],
                                           self.rs[k]) / sumrs[k])
+            print 'psis',time.time() - t0
 
             # amplitudes
             self.amps[k] = sumrs[k] / self.N
