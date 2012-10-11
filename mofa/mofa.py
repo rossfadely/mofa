@@ -30,6 +30,7 @@ class Mofa(object):
         self.M = M 
 
         self.data = np.atleast_2d(data)
+        self.dataT = self.data.T # INSANE DATA DUPLICATION
         self.N = self.data.shape[0]
         self.D = self.data.shape[1]
 
@@ -99,9 +100,6 @@ class Mofa(object):
             print("Warning: EM didn't converge after {0} iterations"
                     .format(i))
 
-
-
-
     def _E_step(self):
         """
         Expectation step.  See docs for details.
@@ -116,7 +114,7 @@ class Mofa(object):
             self.betas[k] = np.dot(self.lambdas[k].T,invcov)
 
             # latent values
-            zeroed = (self.data - self.means[k]).T
+            zeroed = self.dataT - self.means[k, :, None]
             self.latents[k] = np.dot(self.betas[k],zeroed)
 
             # latent cov
@@ -127,36 +125,39 @@ class Mofa(object):
     def _M_step(self):
         """
         Maximization step.  See docs for details.
+
+        This assumes that `_E_step()` has been run.
         """
 	sumrs = np.sum(self.rs,axis=1)
         for k in range(self.K):
 
             # means
-            step = self.data.T - np.dot(self.lambdas[k],self.latents[k])
-            self.means[k] = np.sum(self.rs[k] * step,axis=1) / sumrs[k]
+            lambdaslatents = np.dot(self.lambdas[k], self.latents[k])
+            self.means[k] = np.sum(self.rs[k] * (self.dataT - lambdaslatents),
+                                   axis=1) / sumrs[k]
  
             # lambdas
-            zeroed = (self.data - self.means[k]).T
-	    right  = inv(np.dot(self.latent_covs[k],self.rs[k]))
-	    left  = np.dot(zeroed[:,None,:]*self.latents[k,None,:,:],self.rs[k])
-	    self.lambdas[k] = np.dot(left,right)
+            zeroed = self.dataT - self.means[k, :, None]
+	    self.lambdas[k] = np.dot(np.dot(zeroed[:,None,:] * self.latents[k,None,:,:],
+                                            self.rs[k]),
+                                     inv(np.dot(self.latent_covs[k],
+                                                self.rs[k])))
 
-            # psi - not this is not in any paper MOFAAAAA!
-	    zzT  = zeroed[:,None,:] * zeroed[None,:,:]
-	    step = np.dot(self.lambdas[k],self.latents[k])[:,None,:] * zeroed[None,:,:]
-	    self.psis[k] = np.diag(np.dot(zzT-step,self.rs[k]) / sumrs[k])
+            # psis - not this is not in any paper MOFAAAAA!
+	    self.psis[k] = np.diag(np.dot(zeroed[:,None,:] * zeroed[None,:,:] -
+                                          lambdaslatents[:,None,:] * zeroed[None,:,:],
+                                          self.rs[k]) / sumrs[k])
 
             # amplitudes
             self.amps[k] = sumrs[k] / self.N
 
-	
 	if self.lock_psis:
 	    psi = np.dot(sumrs, self.psis) / np.sum(sumrs)
 	    for k in range(self.K):
 		self.psis[k] = psi
 
 	self._update_covs()
-        
+
     def _update_covs(self):
         """
         Update self.cov for responsibility, logL calc
