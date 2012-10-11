@@ -45,7 +45,7 @@ class Mofa(object):
 
         # Randomly assign factor loadings
 	vd = np.var(self.data)
-        self.lambdas = 2. * vd * np.random.randn(self.K,self.D,self.M)
+        self.lambdas = np.random.randn(self.K,self.D,self.M)
 
         # Set (high rank) variance to variance of all data
         # Do something approx. here for speed?
