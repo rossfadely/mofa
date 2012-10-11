@@ -151,8 +151,7 @@ class Mofa(object):
 
             # psis - not this is not in any paper MOFAAAAA!
 	    self.psis[k] = np.dot((zeroed - lambdalatents) *
-                                  zeroed,
-                                  self.rs[k]) / sumrs[k]
+                                  zeroed,self.rs[k]) / sumrs[k]
 
             # amplitudes
             self.amps[k] = sumrs[k] / self.N
