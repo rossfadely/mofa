@@ -1,27 +1,36 @@
 Mixtures of Factor Analyzers
-=====================
+============================
 
+Authors
+-------
 
-Authored By 
-----------
+- Ross Fadely (NYU)
+- David W. Hogg (NYU)
+- Dan Foreman-Mackey (NYU)
 
-- Ross Fadely
-- David W. Hogg
-- Dan Foreman-Mackey
+Contributors
+------------
 
+- Rob Fergus (NYU)
+- Dilip Krishnan (NYU)
+
+License
+-------
+
+Coming soon.
 
 Install
 -------
 
-Coming
+Coming soon.
 
 Demo
 ----
 
-Coming
+Coming soon.
 
-Setting up virtualenv
-----------------
+Setting up a Virtual Environment
+--------------------------------
 
 Set up the virtual environment:
 
