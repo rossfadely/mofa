@@ -222,9 +222,9 @@ class Mofa(object):
 	for k in range(self.K):
 	    mean = self.means[k,(d1, d2)]
 	    cov = self.covs[k][((d1, d2),(d1, d2)), ((d1, d1), (d2, d2))]
-	    self.plot_2d_ellipse(mean, cov, **kwargs)
+	    self._plot_2d_ellipse(mean, cov, **kwargs)
 
-    def plot_2d_ellipse(self, mu, cov, ax=None, **kwargs):
+    def _plot_2d_ellipse(self, mu, cov, ax=None, **kwargs):
 	"""
 	Plot the error ellipse at a point given it's covariance matrix.
 	"""
