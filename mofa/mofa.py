@@ -144,8 +144,8 @@ class Mofa(object):
                                                 self.rs[k])))
 
             # psis - not this is not in any paper MOFAAAAA!
-	    self.psis[k] = np.diag(np.dot(zeroed[:,None,:] * zeroed[None,:,:] -
-                                          lambdaslatents[:,None,:] * zeroed[None,:,:],
+	    self.psis[k] = np.diag(np.dot((zeroed - lambdaslatents)[:,None,:] *
+                                          zeroed[None,:,:],
                                           self.rs[k]) / sumrs[k])
 
             # amplitudes
