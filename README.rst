@@ -35,3 +35,4 @@ Examples
 
 Coming soon.
 
+`Notes <https://gist.github.com/3875683>`_ on setting up virtualenv
