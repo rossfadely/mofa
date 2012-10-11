@@ -100,6 +100,12 @@ class Mofa(object):
         else:
             print("Warning: EM didn't converge after {0} iterations"
                     .format(i))
+    
+    def take_EM_step(self):
+
+        self._E_step()
+        self._M_step()
+
 
     def _E_step(self):
         """
