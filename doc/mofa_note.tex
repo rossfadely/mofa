@@ -1,0 +1,172 @@
+\documentclass[letterpaper,12pt]{article}
+\usepackage{graphicx}	
+\usepackage{natbib}	
+\usepackage{amsmath}	
+\usepackage{amsfonts}	
+\usepackage{bbm}	%
+\usepackage[left=3cm,top=3cm,right=3cm]{geometry}
+
+\renewcommand{\topfraction}{0.85} \renewcommand{\textfraction}{0.1} 
+\parindent=0cm
+
+\newcommand{\nyu}{$^1$}
+\newcommand{\mpia}{$^2$}
+\newcommand{\sdss}{{\it SDSS}}
+\newcommand{\vect}[1]{\boldsymbol{#1}}
+\newcommand{\data}{\vect{x}}
+\newcommand{\latent}{\vect{s}}
+\newcommand{\mean}{\vect{\mu}}
+\newcommand{\cov}{\vect{\Sigma}}
+\newcommand{\eye}{\vect{I}}
+\newcommand{\bta}{\vect{\beta}}
+\newcommand{\lmda}{\vect{\Lambda}}
+\newcommand{\ps}{\vect{\Psi}}
+
+\usepackage{url}
+
+\title{Notes on Mixtures of Factor Analyzers}
+\author{Ross Fadely\nyu\\
+\\
+\small
+\nyu Center for Cosmology and Particle Physics,
+                        Department of Physics, New York University,\\ \small
+                        4 Washington Place, New York, NY, 10003, USA \\
+}
+\begin{document}
+\maketitle
+
+
+\section{Generalities}
+
+A well known, unsupervised model for multi-variate, multi-modal distributions is the 
+\emph{Mixture of Gaussians} (MOG) approach.  The model postulates that the data can be well 
+described by a set of $K$ Gaussians, for which each component $k$ stipulates a 
+likelihood for data in the component as $N(\mean_k,\cov_k)$.  The mixture of 
+components weights each Gaussian by a prior probability $\pi_k$, which act as 
+global amplitudes or weights for the different components.  An individual datum $i$ is 
+modeled with probability 
+\begin{eqnarray}\displaystyle
+p(\data_i) = \sum_k \pi_k p(\data_i|\mean_k,\cov_k)\quad ,
+\end{eqnarray}
+and the total likelihood of the model is simply the product over the $N$ individual likelihoods.  
+As we will see later, a useful quantity to define is the \emph{responsibilities} 
+\begin{eqnarray}\displaystyle
+\label{eqn:rs}
+\gamma_{ik} = p(k|\data_i,\mean_k,\cov_k) &=& \frac{p(\data_i|k,\mean_k,\cov_k)\,p(k)}{p(\data_i)} \\
+ &=& \frac{\pi_k p(\data_i|\mean_k,\cov_k)}{\sum_k \pi_k p(\data_i|\mean_k,\cov_k)}
+\quad ,
+\end{eqnarray}
+
+While a powerful generalized model, with $\data_i \in \mathbb{R}^D$ the number of 
+free parameters of the model is $KD(D+3)/2$ and may be costly to compute due to 
+the inversion of $D\times D$ size covariances $\cov_k$.  \\
+
+Let us re-write the problem in terms of a mixture of latent linear variables $\latent_k$, such 
+that $\data = \lmda_k \latent_k + \mean_k + \mathbf{\epsilon}$, where $\latent \sim N(0,\eye)$ and 
+$\mathbf{\epsilon} \sim N(0,\cov_k)$.  In this definition, we now have 
+$\cov_k = \lmda_k\lmda_k^T + \ps_k$,  that is the covariance for the $k-$th 
+component can be thought of as a diagonal variance (we define as) $\ps_k$ and 
+a covariance matrix $\lmda_k\lmda_k^T$.  For the MOG case, the latent variables 
+$\latent_i \in \mathbb{R}^D$ are precisely the eigenvectors of $\cov_k$, with $|\lmda_k|$ 
+ close to the eigenvalues (but slightly different since we have separated the diagonal $\ps_k$).  \\
+
+For \emph{Mixtures of Factor Analyzers} (MOFA), we consider the case where 
+$\latent_i \in \mathbb{R}^M$ with $M<D$.  In other words, we consider latent variables that are of 
+lower dimensionality than the data, and should be thought of as a lower dimensional projection 
+of the data into a subspace with $M$ dimensions.  Here the matrices $\lmda_k$ are a 
+$M\times D$, low rank component of $\cov_k$ while $\ps_k$ is the high-rank (diagonal) variances 
+of the component.  The reduced rank of $\lmda_k$ has the practical advantage of being faster 
+to compute, making MOFA a suitable model when $K,D,N$ are large.  In real-world situations, the 
+lower dimensionality of the MOFA model is justified --- often the first $M$ eigenvectors of $\cov$ 
+dominate, with the remaining $D-M$ eigenvectors closely represented by diagonal noise ($\ps$).
+
+\section{Expectation-Maximization for MOFA}
+
+Let us define -- \\ \\
+\begin{tabular}{lcl}
+$K$ &:&the number of mixture components, subscripted by $k$\\
+$M$&:& the number of latent dimensions\\
+$D$&:& the dimensionality of the data's features\\
+$N$ &:&the number of data points\\
+$\data$ &:&data which is a $D\times N$ dimensional matrix\\ 
+$\latent_k$ &:&the latent projections of $\data$, dimension $M\times N$\\
+$\lmda_k$ &:&the transformation matrix for $\latent_k$, dimension $M\times D$\\
+$\ps_k$ &:&the diagonal variance matrix for component $k$, dimension $D\times D$\\
+\end{tabular}
+
+\subsection{Expectation}
+
+We want to estimate the latent projections and their covariances, under the current model 
+parameters for the transformation $\lmda_k$ and $\ps_k$ -- \\ \\
+
+\begin{eqnarray}\displaystyle
+\bta_k & = & \lmda_k^T(\lmda_k\lmda_k^T+\ps_k)^{-1}\\
+\langle\latent_k|\data,\lmda_k,\ps_k\rangle & = & \bta_k (\data-\mean_k) \\
+\langle\latent_k\latent_k^T|\data,\lmda_k,\ps_k\rangle & = & \eye -  \bta_k\lmda_k + \bta_k(\data-\mean_k)(\data-\mean_k)^T\bta_k^T
+\quad ,
+\end{eqnarray}
+
+In the notation here, $\latent_k$ is a $M\times N$ matrix so it is worth noting that 
+$\langle\latent_k\latent_k^T|\data,\lmda_k,\ps_k] $ has dimension $M \times M \times N$.  
+Note, $\bta_k$ can be computed making use of a inversion lemma\footnote{
+$(\lmda\lmda^T+\ps)^{-1} = \ps^{-1} - \ps^{-1}\lmda(\eye + \lmda^T\ps^{-1}\lmda)^{-1}
+\lmda^T\ps^{-1}$, where subscript $k$ has been dropped}.  In addition to computing the 
+above, for each $k$ it is also necessary to compute the responsibilities $\gamma_{ik}$ 
+(see Eq. \ref{eqn:rs}).
+
+\subsection{Maximization}
+
+It can be shown \citep[for instance,][]{ghahramani96} that the expected log-likelihood for a mixture 
+of factor analyzers is :
+
+\begin{eqnarray}\displaystyle
+E(p(\data)) &=& c - \frac{1}{2}\sum_{ik} N\log|\psi_k| + \gamma_{ik}\data_i^T\ps_k^{-1}\lmda_k \langle\latent_k|\data,\lmda_k,\ps_k\rangle \\
+&& - \frac{1}{2}\sum_{ik} \gamma_{ik}{\rm trace}(\lmda_k^T\psi^{-1}\lmda_k \langle\latent_k\latent_k^T|\data,\lmda_k,\ps_k\rangle )
+\quad ,
+\end{eqnarray}
+
+By taking derivatives and setting them equal to zero, we get the update steps --
+
+\begin{eqnarray}\displaystyle
+\mean_k &\leftarrow& \frac{\sum_i\gamma_{ij}(\data_i-{\lmda_j \langle\latent_k|\data,\lmda_k,\ps_k\rangle})}{\sum_i\gamma_{ij}} \\
+\lambda_k &\leftarrow& \left[ \sum_i\gamma_{ij}(\data_i- \mean_k)\langle\latent_k|\data,\lmda_k,\ps_k\rangle) \right]  \left[ \sum_i\gamma_{ij}\langle\latent_k\latent_k^T|\data,\lmda_k,\ps_k\rangle) \right]^{-1}\\
+\label{eqn:psik}
+\ps_k &\leftarrow& {\rm diag}(\frac{\sum_i\gamma_{ij}\left[(\data-\mean_k)(\data-\mean_k)^T-\lmda_k \langle\latent_k|\data,\lmda_k,\ps_k\rangle(\data-\mean_k)^T\right]}{\sum_i\gamma_{ij}}) \\
+\pi_k &\leftarrow& \frac{1}{N}\sum_i\gamma_{ij}
+\quad .
+\end{eqnarray}
+
+One important distinction here is that we allow the $\ps_k$ matrices to be different for 
+different components.  This differs from what is show in a lot of the standard literature, 
+like \citet{ghahramani96} which seek to make $\ps_k$ the same for all $k$.  This update 
+typically is written as --
+
+\begin{eqnarray}\displaystyle
+\label{eqn:psi}
+\ps &\leftarrow& \frac{1}{N}{\rm diag}(\sum_i\gamma_{ij}\left[(\data-\mean_k)(\data-\mean_k)^T-\lmda_k \langle\latent_k|\data,\lmda_k,\ps_k\rangle(\data-\mean_k)^T\right]) 
+\quad .
+\end{eqnarray}
+
+Thus, in our code, if we want to `lock' the $\ps_k$ values to be the same (map Eq. 
+\ref{eqn:psik} to Eq. \ref{eqn:psi}) we can just re-weight be the responsibilities 
+over $k$ --
+
+\begin{eqnarray}\displaystyle
+\ps &\leftarrow& \frac{\sum_k \gamma_k \ps_k}{\sum_k \gamma_k } 
+\quad .
+\end{eqnarray}
+
+Finally if we want to do probabilistic PCA, all the elements along $\ps$ are the same, 
+in which case we take the average value of the elements.
+
+\section{Python Implementation}
+
+Here are a list of the functions and variables in the \texttt{mofa} class, with some 
+description of what's going on.  $\star\star\star$ To be updated along with the 
+code. $\star\star\star$.
+
+\subsection{Variables}
+
+\texttt{}
+
+\end{document}
