@@ -44,14 +44,13 @@ class Mofa(object):
         self.amps /= np.sum(self.amps)
 
         # Randomly assign factor loadings
-	minvar = np.min(np.var(self.data, axis=0))
-        self.lambdas = 0.5 * minvar * np.random.randn(self.K,self.D,self.M)
+        self.lambdas = np.zeros((self.K,self.D,self.M))
 
         # Set (high rank) variance to variance of all data
         # Do something approx. here for speed?
-        self.psis = 0.5 * minvar * np.ones((self.K,self.D))
-
-        # Set initial cov
+        self.psis = np.tile(np.var(self.data,axis=0)[None,:],(self.K,1))
+                            
+        # Set initial covs
         self.covs = np.zeros((self.K,self.D,self.D))
 	self._update_covs()
 
@@ -157,9 +156,10 @@ class Mofa(object):
 
             t0 = time.time()
             # psis - not this is not in any paper MOFAAAAA!
-	    self.psis[k] = np.diag(np.dot((zeroed - lambdalatents)[:,None,:] *
-                                          zeroed[None,:,:],
-                                          self.rs[k]) / sumrs[k])
+	    self.psis[k] = np.dot((zeroed - lambdalatents) *
+                                  zeroed,
+                                  self.rs[k]) / sumrs[k]
+            print self.psis[k]
             print 'psis',time.time() - t0
 
             # amplitudes
@@ -179,7 +179,6 @@ class Mofa(object):
 	for k in range(self.K):
             self.covs[k] = np.dot(self.lambdas[k],self.lambdas[k].T) + \
 		np.diag(self.psis[k])
-
         
     def _calc_prob(self):
         """
