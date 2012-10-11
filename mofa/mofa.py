@@ -1,4 +1,3 @@
-
 import numpy as np
 import matplotlib.pyplot as pl
 import time
@@ -45,11 +44,12 @@ class Mofa(object):
         self.amps /= np.sum(self.amps)
 
         # Randomly assign factor loadings
-        self.lambdas = np.random.randn(self.K,self.D,self.M)
+	vd = np.var(self.data)
+        self.lambdas = 2. * vd * np.random.randn(self.K,self.D,self.M)
 
         # Set (high rank) variance to variance of all data
         # Do something approx. here for speed?
-        self.psis = np.var(self.data) * np.ones((self.K,self.D))
+        self.psis = 0.5 * vd * np.ones((self.K,self.D))
 
         # Set initial cov
         self.covs = np.zeros((self.K,self.D,self.D))
