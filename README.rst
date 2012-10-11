@@ -17,15 +17,21 @@ Contributors
 License
 -------
 
-Coming soon.
+Copyright 2012 the authors.
+
+**mofa** is free software licensed under the *MIT License*.  For
+details, see the
+`LICENSE file <https://raw.github.com/rossfadely/mofa/master/LICENSE.rst>`_.
 
 Install
 -------
 
-Coming soon.
+::
 
-Demo
-----
+    pip install mofa
+
+Examples
+--------
 
 Coming soon.
 
