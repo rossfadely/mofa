@@ -15,7 +15,7 @@ d[1,:] += -3 + 0.5 * d[0,:]
 fig=pl.figure()
 pl.plot(d[0,:],d[1,:],'ko',alpha=0.25)
 
-k,m = 1,2
+k,m = 2,3
 
 mix = Mofa(d.T,k,m,False)
 pl.plot(mix.means[:,0],mix.means[:,1],'rx',ms=15,label='Initialization')
