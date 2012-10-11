@@ -1,8 +1,18 @@
+# Temp files.
 .DS_Store
 *~
+
+# Python byproducts.
 *.pyc
+build
+dist
+*.egg-info
+
+# Images, data, etc.
 *.png
 *.pdf
 *.dat
+
+# LaTeX byproducts.
 *.aux
 *.log
