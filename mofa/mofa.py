@@ -46,8 +46,7 @@ class Mofa(object):
         # Randomly assign factor loadings
         self.lambdas = np.random.randn(self.K,self.D,self.M)
 
-        # Set (high rank) variance to variance of all data
-        # Do something approx. here for speed?
+        # Set (high rank) variance to variance of all data, along a dimension
         self.psis = np.tile(np.var(self.data,axis=0)[None,:],(self.K,1))
                             
         # Set initial covs
