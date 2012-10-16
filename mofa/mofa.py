@@ -91,6 +91,7 @@ class Mofa(object):
                 L = newL
             else:
                 dL = np.abs((newL - L) / L)
+		assert dL > 0
                 if i > 5 and dL < tol:
                     break
                 L = newL
