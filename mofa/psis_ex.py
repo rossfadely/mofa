@@ -23,7 +23,7 @@ im = mix.means
 
 mix.run_em()
 mix.plot_2d_ellipses(0,1,edgecolor='b')
-pl.plot(mix.means[:,0],mix.means[:,1],'bx',ms=15,label='Psi free')
+pl.plot(mix.means[:,0],mix.means[:,1],'bx',ms=15,label='PPCA')
 mix.covs[0] = np.dot(mix.lambdas[0],mix.lambdas[0].T)
 mix.plot_2d_ellipses(0,1,edgecolor='g')
 mix.covs[0] = np.diag(mix.psis[0])
@@ -42,7 +42,7 @@ im = mix.means
 
 mix.run_em()
 mix.plot_2d_ellipses(0,1,edgecolor='b')
-pl.plot(mix.means[:,0],mix.means[:,1],'bx',ms=15,label='Psi free')
+pl.plot(mix.means[:,0],mix.means[:,1],'bx',ms=15,label='Psi fixed')
 mix.covs[0] = np.dot(mix.lambdas[0],mix.lambdas[0].T)
 mix.plot_2d_ellipses(0,1,edgecolor='g')
 mix.covs[0] = np.diag(mix.psis[0])
