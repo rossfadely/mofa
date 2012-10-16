@@ -103,17 +103,18 @@ class Mofa(object):
                     .format(i))
     
     def take_EM_step(self):
-
+        """
+        Do one E step and then do one M step.  Duh!
+        """
         self._E_step()
         self._M_step()
-
 
     def _E_step(self):
         """
         Expectation step.  See docs for details.
         """
         # resposibilities and likelihoods
-        self.logLs, rs = self._calc_prob()
+        self.logLs, rs = self._calc_probs()
         self.rs = rs.T
 
         for k in range(self.K):
@@ -175,7 +176,7 @@ class Mofa(object):
             self.covs[k] = np.dot(self.lambdas[k],self.lambdas[k].T) + \
 		np.diag(self.psis[k])
         
-    def _calc_prob(self):
+    def _calc_probs(self):
         """
         Calculate log likelihoods, responsibilites for each datum
         under each component.
@@ -191,7 +192,6 @@ class Mofa(object):
         L = a + np.log(np.sum(np.exp(logrs - a[:, None]), axis=1))
         logrs -= L[:, None]
         return L, np.exp(logrs)
-
         
     def _log_multi_gauss(self, k, X):
         """
@@ -257,4 +257,4 @@ class Mofa(object):
         """
         Alias for calculating log likelihoods
         """
-        return self._calc_prob(x)[0]
+        return self._calc_probs(x)[0]
