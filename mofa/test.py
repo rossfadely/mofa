@@ -53,10 +53,10 @@ def do_test(seed, PPCA):
     pl.legend()
     fig.savefig('mofa_ex.png')
 
-    print mix.lambdas
-    print mix.lambdas.sum()
+    #print mix.lambdas
+    #print mix.lambdas.sum()
     return None
 
 if __name__ == "__main__":
     for seed in range(100):
-        do_test(seed, True)
+        do_test(seed, False)

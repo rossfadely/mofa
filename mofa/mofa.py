@@ -48,7 +48,7 @@ class Mofa(object):
 
         # Randomly assign factor loadings
 	# Magic number for init 0.01 
-        self.lambdas = 10. * np.random.randn(self.K,self.D,self.M)
+        self.lambdas = 0.01 * np.random.randn(self.K,self.D,self.M)
 
         # Set (high rank) variance to variance of all data, along a dimension
         self.psis = np.tile(np.var(self.data,axis=0)[None,:],(self.K,1))
@@ -212,7 +212,7 @@ class Mofa(object):
 
         p = -0.5 * np.sum(X1 * X2, axis=1)
 	
-        return -0.5 * np.log((2 * np.pi) ** (X.shape[1])) - 0.5 * logdet + p
+        return -0.5 * np.log(2 * np.pi) * self.D - 0.5 * logdet + p
 
     def _invert_cov(self,k):
         """
