@@ -24,7 +24,7 @@ class Mofa(object):
     `amps`:        (K) array of component amplitudes
 
     """
-    def __init__(self,data,K,M,lock_psis=False):
+    def __init__(self,data,K,M,PPCA=False,lock_psis=False):
 
         self.K = K 
         self.M = M 
@@ -34,6 +34,8 @@ class Mofa(object):
         self.N = self.data.shape[0]
         self.D = self.data.shape[1]
 
+        # binary options
+	self.PPCA = PPCA
 	self.lock_psis = lock_psis
 
         # Run K-means
@@ -45,7 +47,7 @@ class Mofa(object):
 
         # Randomly assign factor loadings
 	# Magic number for init 0.01 
-        self.lambdas = 0.01 * np.random.randn(self.K,self.D,self.M)
+        self.lambdas = 10. * np.random.randn(self.K,self.D,self.M)
 
         # Set (high rank) variance to variance of all data, along a dimension
         self.psis = np.tile(np.var(self.data,axis=0)[None,:],(self.K,1))
@@ -150,8 +152,10 @@ class Mofa(object):
                                                 self.rs[k])))
 
             # psis - not this is not in any paper MOFAAAAA!
-	    self.psis[k] = np.dot((zeroed - lambdalatents) *
-                                  zeroed,self.rs[k]) / sumrs[k]
+            self.psis[k] = np.dot((zeroed - lambdalatents) * zeroed,
+                                  self.rs[k]) / sumrs[k]
+            if self.PPCA:
+                self.psis[k] = np.mean(self.psis[k]) * np.ones(self.D)
 
             # amplitudes
             self.amps[k] = sumrs[k] / self.N
