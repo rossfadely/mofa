@@ -24,19 +24,20 @@ class Mofa(object):
     `amps`:        (K) array of component amplitudes
 
     """
-    def __init__(self,data,K,M,PPCA=False,lock_psis=False):
+    def __init__(self,data,K,M,PPCA=False,lock_psis=False,max_condition_number=1e4):
 
+        # required
         self.K = K 
         self.M = M 
-
         self.data = np.atleast_2d(data)
         self.dataT = self.data.T # INSANE DATA DUPLICATION
         self.N = self.data.shape[0]
         self.D = self.data.shape[1]
 
-        # binary options
+        # options
 	self.PPCA = PPCA
 	self.lock_psis = lock_psis
+        self.max_condition_number = float(max_condition_number)
 
         # Run K-means
         self.means = kmeans(data,self.K)[0]
@@ -153,8 +154,14 @@ class Mofa(object):
                                                 self.rs[k])))
 
             # psis - not this is not in any paper MOFAAAAA!
-            self.psis[k] = np.dot((zeroed - lambdalatents) * zeroed,
+            psik = np.dot((zeroed - lambdalatents) * zeroed,
                                   self.rs[k]) / sumrs[k]
+            minpsik = np.max(psik) / self.max_condition_number
+            # freakin HACK
+            if np.any(psik < 0.):
+                print "HOLY CRAP; clipping psi[%d]" % k, psik
+            self.psis[k] = np.clip(psik, minpsik, np.Inf)
+
             if self.PPCA:
                 self.psis[k] = np.mean(self.psis[k]) * np.ones(self.D)
 

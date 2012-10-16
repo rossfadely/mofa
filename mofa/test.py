@@ -59,4 +59,4 @@ def do_test(seed, PPCA):
 
 if __name__ == "__main__":
     for seed in range(100):
-        do_test(seed, False)
+        do_test(seed, True)
