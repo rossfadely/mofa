@@ -7,12 +7,12 @@ from mofa import *
 def do_test(seed, PPCA):
     np.random.seed(seed)
 
-    d = np.random.randn(10, 250)
+    d = np.random.randn(3, 250)
     d[0,:] *= 5
     d[1,:] *= 1
     d[1,:] += 3 + 0.5 * d[0,:]
 
-    b = np.random.randn(10,250)
+    b = np.random.randn(3,250)
     b[0,:] *= 5
     b[0,:] -= 5 
     b[1,:] *= 1
@@ -20,13 +20,15 @@ def do_test(seed, PPCA):
 
     d = np.concatenate((d,b),axis=1)
 
-    b = np.random.randn(10,130)
+    b = np.random.randn(3,130)
     b[0,:] *= 1
     b[0,:] += 5
     b[1,:] *= 5
     b[1,:] += 12 + 0.5 * b[0,:]
 
     d = np.concatenate((d,b),axis=1)
+    xmin, xmax = np.min(d[0]), np.max(d[0])
+    ymin, ymax = np.min(d[1]), np.max(d[1])
 
     D, N = d.shape
     fig=pl.figure()
@@ -51,12 +53,15 @@ def do_test(seed, PPCA):
     pl.plot(mix.means[:,0],mix.means[:,1],'gx',ms=15,label='Psi fixed')
     pl.title(r'Data $(D, N) = ({0}, {1})$, Model $(K, M) = ({2}, {3})$'.format(D,N,K,M))
     pl.legend()
-    fig.savefig('mofa_ex.png')
+    pl.xlim(xmin, xmax)
+    pl.ylim(ymin, ymax)
+    fig.savefig('mofa_ex_%02d.png' % seed)
 
     #print mix.lambdas
     #print mix.lambdas.sum()
+    print "test.py: done seed %d" % seed
     return None
 
 if __name__ == "__main__":
     for seed in range(100):
-        do_test(seed, False)
+        do_test(seed, True)
