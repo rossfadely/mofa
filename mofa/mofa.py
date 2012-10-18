@@ -51,14 +51,15 @@ class Mofa(object):
         self.lock_psis            = lock_psis
         self.rs_clip              = rs_clip
         self.max_condition_number = float(max_condition_number)
+        assert rs_clip >= 0.0
 
-        # Empty arrays to be filled
+        # empty arrays to be filled
         self.betas       = np.zeros((self.K,self.M,self.D))
         self.latents     = np.zeros((self.K,self.M,self.N))
         self.latent_covs = np.zeros((self.K,self.M,self.M,self.N))
         self.kmeans_rs   = np.zeros(self.N, dtype=int)
 
-        # Initialize
+        # initialize
         self._initialize(init_kmeans_ppca)
 
     def _initialize(self,init_kmeans_ppca):
@@ -129,8 +130,8 @@ class Mofa(object):
             Print all the messages?
 
         """
-        iterations = _algorithms.kmeans(self._data, self.means,
-                self.kmeans_rs, tol, maxiter)
+        iterations = _algorithms.kmeans(self.data, self.means,
+                                        self.kmeans_rs, tol, maxiter)
 
         if verbose:
             if iterations < maxiter:
@@ -287,8 +288,6 @@ class Mofa(object):
         logrs -= L[None, :]
         if self.rs_clip > 0.0:
             logrs = np.clip(logrs,np.log(self.rs_clip),np.Inf)
-            L = self._log_sum(logrs)
-            logrs -= L[None, :]
             
         return L, np.exp(logrs)
 
@@ -316,14 +315,12 @@ class Mofa(object):
         Calculate inverse covariance of mofa or ppca model,
         using inversion lemma
         """
-        # probable slight speed up if psi kept as 1D array
         psiI = inv(np.diag(self.psis[k]))
         lam  = self.lambdas[k]
         lamT = lam.T
         step = inv(np.eye(self.M) + np.dot(lamT,np.dot(psiI,lam)))
         step = np.dot(step,np.dot(lamT,psiI))
         step = np.dot(psiI,np.dot(lam,step))
-
         return psiI - step
 
     def plot_2d_ellipses(self,d1,d2, **kwargs):
