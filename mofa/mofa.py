@@ -61,38 +61,50 @@ class Mofa(object):
 
     def _initialize(self,init_kmeans_ppca):
 
-        if init_kmeans_ppca:
-            # run K-means
-            self.run_kmeans()
+        # Run K-means
+        self.run_kmeans()
 
-            # initialize lambdas and psis
-            self.lambdas = np.zeros((self.K,self.D,self.M))
-            self.psis    = np.zeros((self.K,self.D))
+        # Randomly assign factor loadings
+        self.lambdas = np.random.randn(self.K,self.D,self.M) / \
+            np.sqrt(self.max_condition_number)
+
+        # Set (high rank) variance to variance of all data, along a dimension
+        self.psis = np.tile(np.var(self.data,axis=0)[None,:],(self.K,1))
+
+        if init_kmeans_ppca:
 
             # for each cluster, run a PPCA
             for k in range(self.K):
+
+                rs      = self.kmeans_rs[k]
+                ind     = rs==1 
+                dataT   = self.data[ind].T
+                lambdas = self.lambdas[k]
+                psis    = self.psis[k]
+
+                # run em
+                L = None
+                for i in xrange(maxiter):
+                    betas, latents, latent_covs = \
+                        self._one_component_E_step(lambdas,inv_cov,
+                                                   dataT,mean)
+                    newL = self.logLs.sum()
+                    means, lambdas, psis = \
+                        self._one_component_M_step(rs,rs.sum(),dataT,
+                              lambdas,latents,latent_covs,True)
+                    if L is None:
+                        L = newL
+                    else:
+                        dL = np.abs((newL - L) / L)
+                    assert dL > 0
+                    if i > 5 and dL < tol:
+                        break
+                    L = newL
+
+                # record initialization
+                self.lambdas[k] = lambdas
+                self.psis[k]    = psis
                 
-                ind  = self.kmeans_rs[k]==1 
-                data = self.data[ind]
-
-                lambas = np.random.randn(self.D,self.M) / \
-                    np.sqrt(self.max_condition_number)
-
-                psis = np.var(self.data,axis=0)
-
-                
-
-        else:
-
-            # Run K-means
-            self.means = kmeans(self.data,self.K)[0]
-
-            # Randomly assign factor loadings
-            self.lambdas = np.random.randn(self.K,self.D,self.M) / \
-                np.sqrt(self.max_condition_number)
-
-            # Set (high rank) variance to variance of all data, along a dimension
-            self.psis = np.tile(np.var(self.data,axis=0)[None,:],(self.K,1))
 
         # Set initial covs
         self.covs = np.zeros((self.K,self.D,self.D))
@@ -154,7 +166,7 @@ class Mofa(object):
             if i == 0 and verbose:
                 print("Initial NLL =", -newL)
 
-            self._M_step_new()
+            self._M_step()
             if L is None:
                 L = newL
             else:
@@ -211,7 +223,7 @@ class Mofa(object):
 
         return beta, latents, latent_cov
 
-    def _one_component_M_step(self,k,rs,sumrs,dataT,
+    def _one_component_M_step(self,rs,sumrs,dataT,
                               lambdas,latents,latent_cov,
                               PPCA):
         """
@@ -220,16 +232,16 @@ class Mofa(object):
         # means
         lambdalatents = np.dot(lambdas, latents)
         means = np.sum(rs * (dataT - lambdalatents),
-                        axis=1) / sumrs[k]
+                        axis=1) / sumrs
 
         # lambdas
         zeroed = dataT - means[:, None]
         lambdas = np.dot(np.dot(zeroed[:,None,:] * latents[None,:,:],rs),
-                         inv(np.dot(self.latent_covs[k],rs)))
+                         inv(np.dot(latent_cov,rs)))
 
         # psis
         # hacking a floor for psis
-        psis   = np.dot((zeroed - lambdalatents) * zeroed,rs) / sumrs[k]
+        psis   = np.dot((zeroed - lambdalatents) * zeroed,rs) / sumrs
         maxpsi = np.max(psis)
         maxlam = np.max(np.sum(lambdas * lambdas, axis=0))
         minpsi = np.max([maxpsi, maxlam]) / self.max_condition_number
@@ -321,7 +333,7 @@ class Mofa(object):
             ax = pl.gca()
         ax.add_patch(ellipsePlot)
 
-    def _M_step_new(self):
+    def _M_step(self):
         """
         Maximization step.  See docs for details.
 
@@ -333,7 +345,7 @@ class Mofa(object):
         # maximize for each component
         for k in range(self.K):
             self.means[k],self.lambdas[k],self.psis[k] = \
-                self._one_component_M_step(k,self.rs[k],sumrs,self.dataT,
+                self._one_component_M_step(k,self.rs[k],sumrs[k],self.dataT,
                               self.lambdas[k],self.latents[k],self.latent_covs[k],
                               self.PPCA)
             self.amps[k] = sumrs[k] / self.N
