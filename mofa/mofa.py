@@ -65,8 +65,8 @@ class Mofa(object):
     def _initialize(self,init_kmeans_ppca):
 
         # Run K-means
-        self.means = kmeans(self.data,self.K)[0]
-        #self.run_kmeans()
+        #self.means = kmeans(self.data,self.K)[0]
+        self.run_kmeans()
 
         # Randomly assign factor loadings
         self.lambdas = np.random.randn(self.K,self.D,self.M) / \
