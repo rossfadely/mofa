@@ -30,43 +30,89 @@ class Mofa(object):
     `amps`:        (K) array of component amplitudes
 
     """
-    def __init__(self,data,K,M,PPCA=False,lock_psis=False,max_condition_number=1.e6):
+    def __init__(self,data,K,M,
+                 PPCA=False,lock_psis=False,
+                 max_condition_number=1.e6,
+                 init_kmeans_ppca=False):
 
         # required
-        self.K = K 
-        self.M = M 
-        self.data = np.atleast_2d(data)
+        self.K     = K 
+        self.M     = M 
+        self.data  = np.atleast_2d(data)
         self.dataT = self.data.T # INSANE DATA DUPLICATION
-        self.N = self.data.shape[0]
-        self.D = self.data.shape[1]
+        self.N     = self.data.shape[0]
+        self.D     = self.data.shape[1]
 
         # options
-        self.PPCA = PPCA
-        self.lock_psis = lock_psis
+        self.PPCA                 = PPCA
+        self.lock_psis            = lock_psis
         self.max_condition_number = float(max_condition_number)
 
-        # Run K-means
-        self.means = kmeans(data,self.K)[0]
+        # Empty arrays to be filled
+        self.betas       = np.zeros((self.K,self.M,self.D))
+        self.latents     = np.zeros((self.K,self.M,self.N))
+        self.latent_covs = np.zeros((self.K,self.M,self.M,self.N))
+        self.kmeans_rs   = np.zeros(self._data.shape[0], dtype=int)
 
-        # Randomly assign the amplitudes.
-        self.amps = np.random.rand(K)
-        self.amps /= np.sum(self.amps)
+        # Initialize
+        self._initialize(init_kmeans_ppca)
 
-        # Randomly assign factor loadings
-        self.lambdas = np.random.randn(self.K,self.D,self.M) / np.sqrt(self.max_condition_number)
+    def _initialize(self,init_kmeans_ppca):
 
-        # Set (high rank) variance to variance of all data, along a dimension
-        self.psis = np.tile(np.var(self.data,axis=0)[None,:],(self.K,1))
+        if init_kmeans_ppca:
+            pass
+            #runkmeans
+            #loop over compononets
+
+        else:
+            
+            # Run K-means
+            self.means = kmeans(self.data,self.K)[0]
+
+            # Randomly assign factor loadings
+            self.lambdas = np.random.randn(self.K,self.D,self.M) / \
+                np.sqrt(self.max_condition_number)
+
+            # Set (high rank) variance to variance of all data, along a dimension
+            self.psis = np.tile(np.var(self.data,axis=0)[None,:],(self.K,1))
                             
         # Set initial covs
         self.covs = np.zeros((self.K,self.D,self.D))
         self.inv_covs = 0. * self.covs
         self._update_covs()
 
-        # Empty arrays to be filled
-        self.betas = np.zeros((self.K,self.M,self.D))
-        self.latents  = np.zeros((self.K,self.M,self.N))
-        self.latent_covs = np.zeros((self.K,self.M,self.M,self.N))
+        # Randomly assign the amplitudes.
+        self.amps = np.random.rand(self.K)
+        self.amps /= np.sum(self.amps)
+
+
+
+    def run_kmeans(self, maxiter=200, tol=1e-4, verbose=True):
+        """
+        Run the K-means algorithm using the C extension.
+
+        :param maxiter:
+            The maximum number of iterations to try.
+
+        :param tol:
+            The tolerance on the relative change in the loss function that
+            controls convergence.
+
+        :param verbose:
+            Print all the messages?
+
+        """
+        iterations = _algorithms.kmeans(self._data, self.means,
+                self.kmeans_rs, tol, maxiter)
+
+        if verbose:
+            if iterations < maxiter:
+                print("K-means converged after {0} iterations."
+                        .format(iterations))
+            else:
+                print("K-means *didn't* converge after {0} iterations."
+                        .format(iterations))
+
 
     def run_em(self, maxiter=400, tol=1e-4, verbose=True):
         """
@@ -90,7 +136,7 @@ class Mofa(object):
             if i == 0 and verbose:
                 print("Initial NLL =", -newL)
 
-            self._M_step()
+            self._M_step_new()
             if L is None:
                 L = newL
             else:
@@ -123,68 +169,57 @@ class Mofa(object):
         self.logLs, self.rs = self._calc_probs()
 
         for k in range(self.K):
-            # beta
-            self.betas[k] = np.dot(self.lambdas[k].T, self.inv_covs[k])
+            self.betas[k], self.latents[k], self.latent_covs[k] = \
+                self._one_component_E_step(self.lambdas[k],self.inv_covs[k],
+                                           self.dataT,self.means[k])
 
-            # latent values
-            zeroed = self.dataT - self.means[k, :, None]
-            self.latents[k] = np.dot(self.betas[k], zeroed)
 
-            # latent empirical covariance
-            step1   = self.latents[k, :, None, :] * self.latents[k, None, :, :]
-            step2   = np.dot(self.betas[k], self.lambdas[k])
-            self.latent_covs[k] = np.eye(self.M)[:,:,None] - step2[:,:,None] + step1
 
-    def _M_step(self):
+    def _one_component_E_step(self,lambdas,inv_cov,dataT,mean):
         """
-        Maximization step.  See docs for details.
-
-        This assumes that `_E_step()` has been run.
+        Calculate the E step for one component.
         """
-        sumrs = np.clip(np.sum(self.rs,axis=1), 0.01, np.Inf) # MAGIC NUMBER CHECK THIS HACK!
-        for k in range(self.K):
-            lambdalatents = np.dot(self.lambdas[k], self.latents[k])
-            meansk = np.sum(self.rs[k] * (self.dataT - lambdalatents),
-                            axis=1) / sumrs[k]
-            zeroed = self.dataT - self.means[k, :, None]
-            lambdask = np.dot(np.dot(zeroed[:,None,:] * self.latents[k,None,:,:],
-                                     self.rs[k]),
-                              inv(np.dot(self.latent_covs[k],
-                                         self.rs[k])))
-            psisk = np.dot((zeroed - lambdalatents) * zeroed,
-                           self.rs[k]) / sumrs[k]
-            maxpsi = np.max(psisk)
-            maxlam = np.max(np.sum(self.lambdas[k] * self.lambdas[k], axis=0))
-            minpsik = np.max([maxpsi, maxlam]) / self.max_condition_number
-            if np.any(psisk < 0.):
-                print "HOLY CRAP; negatives in psi[%d]" % k, psisk
-                self._diagnose(k)
+        # beta
+        beta = np.dot(lambdas.T,inv_cov)
 
-            # only update means and lambdas *after* doing all calculations
-            self.psis[k] = np.clip(psisk, minpsik, np.Inf)
-            if self.PPCA:
-                self.psis[k] = np.mean(self.psis[k]) * np.ones(self.D)
-            self.lambdas[k] = lambdask
-            self.means[k] = meansk
-            self.amps[k] = sumrs[k] / self.N
+        # latent values
+        zeroed  = dataT - mean[:,None]
+        latents = np.dot(beta,zeroed) 
 
-        if self.lock_psis:
-            psi = np.dot(sumrs, self.psis) / np.sum(sumrs)
-            for k in range(self.K):
-                self.psis[k] = psi
+        # latent empirical covariance
+        step1 = latents[:,None,:] * latents[None,:,:]
+        step2 = np.dot(beta,lambdas)
+        latent_cov = np.eye(self.M)[:,:,None] - step2[:,:,None] + step1
 
-        self._update_covs()
+        return beta, latents, latent_cov
 
-    def _diagnose(self, k):
+    def _one_component_M_step(self,k,rs,sumrs,dataT,
+                              lambdas,latents,latent_cov,
+                              PPCA):
         """
-        Find out why psis[k] has negative elements!
+        Calculate the M step for one component.
         """
-        #print "diagnose psis[%d]: rs" % k, self.rs[k].min(), self.rs[k].max(), np.sum(self.rs[k])
-        #print "diagnose psis[%d]: cov" % k, np.linalg.det(self.covs[k]), np.linalg.det(self.inv_covs[k])
-        #print "diagnose psis[%d]: lambda" % k, self.lambdas[k]
-        #print "diagnose psis[%d]: lambda" % k, np.sum(self.lambdas[k] * self.lambdas[k], axis=0)
-        #print "diagnose psis[%d]: psi" % k, self.psis[k]
-        return None
+        # means
+        lambdalatents = np.dot(lambdas, latents)
+        means = np.sum(rs * (dataT - lambdalatents),
+                        axis=1) / sumrs[k]
+
+        # lambdas
+        zeroed = dataT - means[:, None]
+        lambdas = np.dot(np.dot(zeroed[:,None,:] * latents[None,:,:],rs),
+                         inv(np.dot(self.latent_covs[k],rs)))
+
+        # psis
+        # hacking a floor for psis
+        psis   = np.dot((zeroed - lambdalatents) * zeroed,rs) / sumrs[k]
+        maxpsi = np.max(psis)
+        maxlam = np.max(np.sum(lambdas * lambdas, axis=0))
+        minpsi = np.max([maxpsi, maxlam]) / self.max_condition_number
+        psis   = np.clip(psis, minpsi, np.Inf)
+        if self.PPCA:
+            psis = np.mean(psis) * np.ones(self.D)
+
+        return means,lambdas,psis
 
     def _update_covs(self):
         """
@@ -267,3 +302,89 @@ class Mofa(object):
         if ax is None:
             ax = pl.gca()
         ax.add_patch(ellipsePlot)
+
+    def _M_step_new(self):
+        """
+        Maximization step.  See docs for details.
+
+        This assumes that `_E_step()` has been run.
+        """
+        # MAGIC NUMBER CHECK THIS HACK!
+        sumrs = np.clip(np.sum(self.rs,axis=1), 0.00, np.Inf)
+
+        # maximize for each component
+        for k in range(self.K):
+            self.means[k],self.lambdas[k],self.psis[k] = \
+                self._one_component_M_step(k,self.rs[k],sumrs,self.dataT,
+                              self.lambdas[k],self.latents[k],self.latent_covs[k],
+                              self.PPCA)
+            self.amps[k] = sumrs[k] / self.N
+
+        if self.lock_psis:
+            psi = np.dot(sumrs, self.psis) / np.sum(sumrs)
+            for k in range(self.K):
+                self.psis[k] = psi
+
+        self._update_covs()
+
+
+    # BELOW HERE ARE DIAGONOSTIC VERSIONS OF M STEP, TO BE DELETED
+
+    def _M_step_diagnose(self):
+        """
+        Maximization step.  See docs for details.
+
+        This assumes that `_E_step()` has been run.
+        """
+        sumrs = np.clip(np.sum(self.rs,axis=1), 0.01, np.Inf) # MAGIC NUMBER CHECK THIS HACK!
+        for k in range(self.K):
+            lambdalatents = np.dot(self.lambdas[k], self.latents[k])
+            meansk = np.sum(self.rs[k] * (self.dataT - lambdalatents),
+                            axis=1) / sumrs[k]
+            zeroed = self.dataT - self.means[k, :, None]
+            lambdask = np.dot(np.dot(zeroed[:,None,:] * self.latents[k,None,:,:],
+                                     self.rs[k]),
+                              inv(np.dot(self.latent_covs[k],
+                                         self.rs[k])))
+            psisk = np.dot((zeroed - lambdalatents) * zeroed,
+                           self.rs[k]) / sumrs[k]
+            maxpsi = np.max(psisk)
+            maxlam = np.max(np.sum(self.lambdas[k] * self.lambdas[k], axis=0))
+            minpsik = np.max([maxpsi, maxlam]) / self.max_condition_number
+            if np.any(psisk < 0.):
+                print "HOLY CRAP; negatives in psi[%d]" % k, psisk
+                self._diagnose(k)
+
+            # only update means and lambdas *after* doing all calculations
+            self.psis[k] = np.clip(psisk, minpsik, np.Inf)
+            if self.PPCA:
+                self.psis[k] = np.mean(self.psis[k]) * np.ones(self.D)
+            self.lambdas[k] = lambdask
+            self.means[k] = meansk
+            self.amps[k] = sumrs[k] / self.N
+
+        if self.lock_psis:
+            psi = np.dot(sumrs, self.psis) / np.sum(sumrs)
+            for k in range(self.K):
+                self.psis[k] = psi
+
+        self._update_covs()
+
+
+    def _diagnose(self, k):
+        """
+        Find out why psis[k] has negative elements!
+        """
+        #print "diagnose psis[%d]: rs" % k, self.rs[k].min(), self.rs[k].max(), np.sum(self.rs[k])
+        #print "diagnose psis[%d]: cov" % k, np.linalg.det(self.covs[k]), np.linalg.det(self.inv_covs[k])
+        #print "diagnose psis[%d]: lambda" % k, self.lambdas[k]
+        #print "diagnose psis[%d]: lambda" % k, np.sum(self.lambdas[k] * self.lambdas[k], axis=0)
+        #print "diagnose psis[%d]: psi" % k, self.psis[k]
+        return None
+
+
+
+
+
+
+

@@ -5,16 +5,21 @@ import sys
 import mofa
 
 try:
-    from setuptools import setup
-    setup
+    from setuptools import setup, Extension
+    setup, Extension
 except ImportError:
+    print "failed import"
     from distutils.core import setup
-    setup
+    from distutils.extension import setup, Extension
+    setup, Extension
 
+import numpy.distutils.misc_util
 
 if sys.argv[-1] == "publish":
     os.system("python setup.py sdist upload")
     sys.exit()
+
+algorithms_ext = Extension("mofa._algorithms", ["mofa/_algorithms.c"])
 
 
 setup(
@@ -29,6 +34,7 @@ setup(
     package_data={"": ["LICENSE.rst", "AUTHORS.rst"]},
     include_package_data=True,
     install_requires=["numpy", "scipy"],
+    include_dirs = numpy.distutils.misc_util.get_numpy_include_dirs(),
     classifiers=[
         # "Development Status :: 1 - Planning",
         # "Development Status :: 2 - Pre-Alpha",
