@@ -1,3 +1,5 @@
+__all__ = ["Mofa"]
+
 import numpy as np
 import matplotlib.pyplot as pl
 import time
@@ -36,8 +38,8 @@ class Mofa(object):
                  init_kmeans_ppca=False):
 
         # required
-        self.K     = K 
-        self.M     = M 
+        self.K     = K
+        self.M     = M
         self.data  = np.atleast_2d(data)
         self.dataT = self.data.T # INSANE DATA DUPLICATION
         self.N     = self.data.shape[0]
@@ -65,7 +67,7 @@ class Mofa(object):
             #loop over compononets
 
         else:
-            
+
             # Run K-means
             self.means = kmeans(self.data,self.K)[0]
 
@@ -75,7 +77,7 @@ class Mofa(object):
 
             # Set (high rank) variance to variance of all data, along a dimension
             self.psis = np.tile(np.var(self.data,axis=0)[None,:],(self.K,1))
-                            
+
         # Set initial covs
         self.covs = np.zeros((self.K,self.D,self.D))
         self.inv_covs = 0. * self.covs
@@ -153,7 +155,7 @@ class Mofa(object):
         else:
             print("Warning: EM didn't converge after {0} iterations"
                     .format(i))
-    
+
     def take_EM_step(self):
         """
         Do one E step and then do one M step.  Duh!
@@ -184,7 +186,7 @@ class Mofa(object):
 
         # latent values
         zeroed  = dataT - mean[:,None]
-        latents = np.dot(beta,zeroed) 
+        latents = np.dot(beta,zeroed)
 
         # latent empirical covariance
         step1 = latents[:,None,:] * latents[None,:,:]
@@ -229,7 +231,7 @@ class Mofa(object):
             self.covs[k] = np.dot(self.lambdas[k],self.lambdas[k].T) + \
                 np.diag(self.psis[k])
             self.inv_covs[k] = self._invert_cov(k)
-        
+
     def _calc_probs(self):
         """
         Calculate log likelihoods, responsibilites for each datum
@@ -245,7 +247,7 @@ class Mofa(object):
         L = a + np.log(np.sum(np.exp(logrs - a[None, :]), axis=0))
         logrs -= L[None, :]
         return L, np.exp(logrs)
-        
+
     def _log_multi_gauss(self, k, X):
         """
         Gaussian log likelihood of the data for component k.
