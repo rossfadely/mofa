@@ -2,11 +2,11 @@ __all__ = ["Mofa"]
 
 import numpy as np
 import matplotlib.pyplot as pl
-import time
+#import time
 
 from scipy.cluster.vq import kmeans
 from scipy.linalg import inv
-from matplotlib.patches import Ellipse
+#from matplotlib.patches import Ellipse
 
 
 class Mofa(object):
@@ -62,9 +62,25 @@ class Mofa(object):
     def _initialize(self,init_kmeans_ppca):
 
         if init_kmeans_ppca:
-            pass
-            #runkmeans
-            #loop over compononets
+            # run K-means
+            self.run_kmeans()
+
+            # initialize lambdas and psis
+            self.lambdas = np.zeros((self.K,self.D,self.M))
+            self.psis    = np.zeros((self.K,self.D))
+
+            # for each cluster, run a PPCA
+            for k in range(self.K):
+                
+                ind  = self.kmeans_rs[k]==1 
+                data = self.data[ind]
+
+                lambas = np.random.randn(self.D,self.M) / \
+                    np.sqrt(self.max_condition_number)
+
+                psis = np.var(self.data,axis=0)
+
+                
 
         else:
 
