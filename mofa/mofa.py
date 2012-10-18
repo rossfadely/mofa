@@ -6,7 +6,7 @@ import matplotlib.pyplot as pl
 
 from scipy.cluster.vq import kmeans
 from scipy.linalg import inv
-#from matplotlib.patches import Ellipse
+from matplotlib.patches import Ellipse
 
 
 class Mofa(object):
@@ -34,6 +34,7 @@ class Mofa(object):
     """
     def __init__(self,data,K,M,
                  PPCA=False,lock_psis=False,
+                 rs_clip = 0.0,
                  max_condition_number=1.e6,
                  init_kmeans_ppca=False):
 
@@ -48,13 +49,14 @@ class Mofa(object):
         # options
         self.PPCA                 = PPCA
         self.lock_psis            = lock_psis
+        self.rs_clip              = rs_clip
         self.max_condition_number = float(max_condition_number)
 
         # Empty arrays to be filled
         self.betas       = np.zeros((self.K,self.M,self.D))
         self.latents     = np.zeros((self.K,self.M,self.N))
         self.latent_covs = np.zeros((self.K,self.M,self.M,self.N))
-        self.kmeans_rs   = np.zeros(self._data.shape[0], dtype=int)
+        self.kmeans_rs   = np.zeros(self.N, dtype=int)
 
         # Initialize
         self._initialize(init_kmeans_ppca)
@@ -62,7 +64,8 @@ class Mofa(object):
     def _initialize(self,init_kmeans_ppca):
 
         # Run K-means
-        self.run_kmeans()
+        self.means = kmeans(self.data,self.K)[0]
+        #self.run_kmeans()
 
         # Randomly assign factor loadings
         self.lambdas = np.random.randn(self.K,self.D,self.M) / \
@@ -201,9 +204,7 @@ class Mofa(object):
 
         This assumes that `_E_step()` has been run.
         """
-        # MAGIC NUMBER CHECK THIS HACK!
-        # RF move this to where rs are calcd
-        sumrs = np.clip(np.sum(self.rs,axis=1), 0.00, np.Inf)
+        sumrs = np.sum(self.rs,axis=1)
 
         # maximize for each component
         for k in range(self.K):
@@ -235,7 +236,7 @@ class Mofa(object):
         step2   = np.dot(self.betas[k], self.lambdas[k])
         self.latent_covs[k] = np.eye(self.M)[:,:,None] - step2[:,:,None] + step1
         
-    def _one_component_M_step(self,rs,sumrs,dataT,PPCA):
+    def _one_component_M_step(self,k,rs,sumrs,dataT,PPCA):
         """
         Calculate the M step for one component.
         """
@@ -254,7 +255,7 @@ class Mofa(object):
         # hacking a floor for psis
         psis = np.dot((zeroed - lambdalatents) * zeroed,rs) / sumrs
         maxpsi = np.max(psis)
-        maxlam = np.max(np.sum(lambdas * lambdas, axis=0))
+        maxlam = np.max(np.sum(self.lambdas[k] * self.lambdas[k], axis=0))
         minpsi = np.max([maxpsi, maxlam]) / self.max_condition_number
         psis   = np.clip(psis, minpsi, np.Inf)
         if PPCA:
@@ -284,6 +285,11 @@ class Mofa(object):
         # nothing like a little bit of overflow to make your day better!
         L = self._log_sum(logrs)
         logrs -= L[None, :]
+        if self.rs_clip > 0.0:
+            logrs = np.clip(logrs,np.log(self.rs_clip),np.Inf)
+            L = self._log_sum(logrs)
+            logrs -= L[None, :]
+            
         return L, np.exp(logrs)
 
     def _log_multi_gauss(self, k, D):
@@ -297,7 +303,7 @@ class Mofa(object):
         p = -0.5 * np.sum(X1 * X2, axis=0)
         return -0.5 * np.log(2 * np.pi) * self.D - 0.5 * logdet + p
 
-    def _log_sum(self,loglikes)
+    def _log_sum(self,loglikes):
         """
         Calculate sum of log likelihoods
         """
