@@ -8,6 +8,7 @@ from scipy.cluster.vq import kmeans
 from scipy.linalg import inv
 from matplotlib.patches import Ellipse
 
+from . import _algorithms
 
 class Mofa(object):
     """
