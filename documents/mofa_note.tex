@@ -121,7 +121,7 @@ parameters for the transformation $\lmda_k$ and $\ps_k$ -- \\ \\
 \end{eqnarray}
 
 In the notation here, $\latent_k$ is a $M\times N$ matrix so it is worth noting that 
-$\langle\latent_k\latent_k^T|\data,\lmda_k,\ps_k] $ has dimension $M \times M \times N$.  
+$\langle\latent_k\latent_k^T|\data,\lmda_k,\ps_k\rangle $ has dimension $M \times M \times N$.  
 Note, $\bta_k$ can be computed making use of a inversion lemma\footnote{
 $(\lmda\lmda^T+\ps)^{-1} = \ps^{-1} - \ps^{-1}\lmda(\eye + \lmda^T\ps^{-1}\lmda)^{-1}
 \lmda^T\ps^{-1}$, where subscript $k$ has been dropped}.  In addition to computing the 
@@ -143,7 +143,7 @@ By taking derivatives and setting them equal to zero, we get the update steps --
 
 \begin{eqnarray}\displaystyle
 \mean_k &\leftarrow& \frac{\sum_i\gamma_{ij}(\data_i-{\lmda_j \langle\latent_k|\data,\lmda_k,\ps_k\rangle})}{\sum_i\gamma_{ij}} \\
-\lambda_k &\leftarrow& \left[ \sum_i\gamma_{ij}(\data_i- \mean_k)\langle\latent_k|\data,\lmda_k,\ps_k\rangle) \right]  \left[ \sum_i\gamma_{ij}\langle\latent_k\latent_k^T|\data,\lmda_k,\ps_k\rangle) \right]^{-1}\\
+\lmda_k &\leftarrow& \left[ \sum_i\gamma_{ij}(\data_i- \mean_k)\langle\latent_k|\data,\lmda_k,\ps_k\rangle) \right]  \left[ \sum_i\gamma_{ij}\langle\latent_k\latent_k^T|\data,\lmda_k,\ps_k\rangle) \right]^{-1}\\
 \label{eqn:psik}
 \ps_k &\leftarrow& {\rm diag}(\frac{\sum_i\gamma_{ij}\left[(\data-\mean_k)(\data-\mean_k)^T-\lmda_k \langle\latent_k|\data,\lmda_k,\ps_k\rangle(\data-\mean_k)^T\right]}{\sum_i\gamma_{ij}}) \\
 \pi_k &\leftarrow& \frac{1}{N}\sum_i\gamma_{ij}
@@ -183,5 +183,7 @@ code. $\star\star\star$.
 \subsection{Variables}
 
 \texttt{}
+
+\section{Bibliography}
 
 \end{document}
