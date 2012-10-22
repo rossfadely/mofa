@@ -173,6 +173,22 @@ over $k$ --
 Finally if we want to do probabilistic PCA, all the elements along $\ps$ are the same, 
 in which case we take the average value of the elements.
 
+\section{Practicalities}
+
+Initialization of the MOFA model is a crucial and tricky step.  In general, the algorithm 
+will find a local minimum regardless of the initialization.  However, an instability 
+exists when the factor loadings $\lmda$ are initialized to large values compared to 
+the diagonal noise matrices $\ps$.  In such situations, random realizations can 
+sometimes cause (within a one or a few EM steps) the $\ps$ to pick up negative 
+values in some elements, which can cause the covariance matrix to have a negative 
+log det.  One solution is to start with $\lmda$ values with mean zero and variance one 
+with the $\ps$ values set to something like the variance of the data along a given 
+dimension.  While this seems to work in most cases, it is rather unsatisfactory and may 
+still be unstable.  We opt to initialize by first setting the means by running a K-means 
+algorithm.  For the points within one of these K-clusters, we run a single component 
+PPCA model.  Using this initialization, we run the above MOFA algorithm, allowing 
+$\ps$ to be free, fixed, or isotropic (PPCA).
+
 \section{Python Implementation}
 
 Here are a list of the functions and variables in the \Mofa\ class of
@@ -185,5 +201,10 @@ code. $\star\star\star$.
 \texttt{}
 
 \section{Bibliography}
+
+\begin{enumerate}
+\item Ghahramani, Z. \& Hinton, G., 1996, ``The EM algorithm for mixtures of factor 
+analyzers", University of Toronto Technical Report, CRG-TR-96-1
+\end{enumerate}
 
 \end{document}
