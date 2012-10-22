@@ -2,7 +2,6 @@ __all__ = ["Mofa"]
 
 import numpy as np
 import matplotlib.pyplot as pl
-#import time
 
 from scipy.cluster.vq import kmeans
 from scipy.linalg import inv
@@ -37,7 +36,7 @@ class Mofa(object):
                  PPCA=False,lock_psis=False,
                  rs_clip = 0.0,
                  max_condition_number=1.e6,
-                 init_kmeans_ppca=False):
+                 init_ppca=True):
 
         # required
         self.K     = K
@@ -54,21 +53,25 @@ class Mofa(object):
         self.max_condition_number = float(max_condition_number)
         assert rs_clip >= 0.0
 
+
         # empty arrays to be filled
         self.betas       = np.zeros((self.K,self.M,self.D))
         self.latents     = np.zeros((self.K,self.M,self.N))
         self.latent_covs = np.zeros((self.K,self.M,self.M,self.N))
         self.kmeans_rs   = np.zeros(self.N, dtype=int)
+        self.rs          = np.zeros((self.K,self.N))
 
         # initialize
-        self._initialize(init_kmeans_ppca)
+        self._initialize(init_ppca)
 
-    def _initialize(self,init_kmeans_ppca):
+    def _initialize(self,init_ppca,maxiter=200, tol=1e-4):
 
         # Run K-means
-        #self.means = kmeans(self.data,self.K)[0]
+        # This is crazy, but DFM's kmeans returns nans/infs 
+        # for some initializations
+        self.means = kmeans(self.data,self.K)[0]
         self.run_kmeans()
-
+        
         # Randomly assign factor loadings
         self.lambdas = np.random.randn(self.K,self.D,self.M) / \
             np.sqrt(self.max_condition_number)
@@ -85,31 +88,29 @@ class Mofa(object):
         self.amps = np.random.rand(self.K)
         self.amps /= np.sum(self.amps)
 
-        if init_kmeans_ppca:
+        if init_ppca:
 
             # for each cluster, run a PPCA
             for k in range(self.K):
 
-                rs      = self.kmeans_rs[k]
-                ind     = rs==1 
-                data    = self.data[ind]
-                dataT   = self.data[ind].T
+                ind = self.kmeans_rs==k 
+                self.rs[k,ind] = 1
+
+                sumrs = np.sum(self.rs[k])
 
                 # run em
                 L = None
                 for i in xrange(maxiter):
-                    betas, latents, latent_covs = \
-                        self._one_component_E_step(k,dataT)
-                    
-                    newL = self._log_sum(self._log_multi_gauss(k,data))
-                    self._one_component_M_step(rs,rs.sum(),dataT,True)
-                    if L is None:
-                        L = newL
-                    else:
+                    self._one_component_E_step(k)
+                    newL = self._log_sum(
+                        self._log_multi_gauss(k,self.data[ind]))
+                    newL = np.sum(newL)
+                    self._one_component_M_step(k,sumrs,True)
+                    self._update_covs()
+                    if L!=None:
                         dL = np.abs((newL - L) / L)
-                    assert dL > 0
-                    if i > 5 and dL < tol:
-                        break
+                        if i > 5 and dL < tol:
+                            break
                     L = newL
 
                 
@@ -166,14 +167,11 @@ class Mofa(object):
                 print("Initial NLL =", -newL)
 
             self._M_step()
-            if L is None:
-                L = newL
-            else:
+            if L!=None:
                 dL = np.abs((newL - L) / L)
-                assert dL > 0
                 if i > 5 and dL < tol:
                     break
-                L = newL
+            L = newL
 
         if i < maxiter - 1:
             if verbose:
@@ -198,7 +196,7 @@ class Mofa(object):
         self.logLs, self.rs = self._calc_probs()
 
         for k in range(self.K):
-            self._one_component_E_step(k,self.dataT)
+            self._one_component_E_step(k)
 
     def _M_step(self):
         """
@@ -210,7 +208,7 @@ class Mofa(object):
 
         # maximize for each component
         for k in range(self.K):
-            self._one_component_M_step(k,self.rs[k],sumrs[k],self.dataT,self.PPCA)
+            self._one_component_M_step(k,sumrs[k],self.PPCA)
             self.amps[k] = sumrs[k] / self.N
 
         if self.lock_psis:
@@ -222,7 +220,7 @@ class Mofa(object):
 
 
 
-    def _one_component_E_step(self,k,dataT):
+    def _one_component_E_step(self,k):
         """
         Calculate the E step for one component.
         """
@@ -230,7 +228,7 @@ class Mofa(object):
         self.betas[k] = np.dot(self.lambdas[k].T,self.inv_covs[k])
 
         # latent values
-        zeroed = dataT - self.means[k, :, None]
+        zeroed = self.dataT - self.means[k, :, None]
         self.latents[k] = np.dot(self.betas[k], zeroed)
 
         # latent empirical covariance
@@ -238,24 +236,23 @@ class Mofa(object):
         step2   = np.dot(self.betas[k], self.lambdas[k])
         self.latent_covs[k] = np.eye(self.M)[:,:,None] - step2[:,:,None] + step1
         
-    def _one_component_M_step(self,k,rs,sumrs,dataT,PPCA):
+    def _one_component_M_step(self,k,sumrs,PPCA):
         """
         Calculate the M step for one component.
         """
         # means
         lambdalatents = np.dot(self.lambdas[k], self.latents[k])
-        self.means[k] = np.sum(rs * (dataT - lambdalatents),
+        self.means[k] = np.sum(self.rs[k] * (self.dataT - lambdalatents),
                         axis=1) / sumrs
 
         # lambdas
-        zeroed = dataT - self.means[k,:, None]
+        zeroed = self.dataT - self.means[k,:, None]
         self.lambdas[k] = np.dot(np.dot(zeroed[:,None,:] *
-                                        self.latents[k,None,:,:],rs),
-                                 inv(np.dot(self.latent_covs[k],rs)))
-
+                                        self.latents[k,None,:,:],self.rs[k]),
+                                 inv(np.dot(self.latent_covs[k],self.rs[k])))
         # psis
         # hacking a floor for psis
-        psis = np.dot((zeroed - lambdalatents) * zeroed,rs) / sumrs
+        psis = np.dot((zeroed - lambdalatents) * zeroed,self.rs[k]) / sumrs
         maxpsi = np.max(psis)
         maxlam = np.max(np.sum(self.lambdas[k] * self.lambdas[k], axis=0))
         minpsi = np.max([maxpsi, maxlam]) / self.max_condition_number
@@ -307,6 +304,7 @@ class Mofa(object):
         """
         Calculate sum of log likelihoods
         """
+        loglikes = np.atleast_2d(loglikes)
         a = np.max(loglikes, axis=0)
         return a + np.log(np.sum(np.exp(loglikes - a[None, :]), axis=0))
         
