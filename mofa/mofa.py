@@ -36,7 +36,7 @@ class Mofa(object):
                  PPCA=False,lock_psis=False,
                  rs_clip = 0.0,
                  max_condition_number=1.e6,
-                 init_kmeans_ppca=False):
+                 init_ppca=True):
 
         # required
         self.K     = K
@@ -62,9 +62,9 @@ class Mofa(object):
         self.rs          = np.zeros((self.K,self.N))
 
         # initialize
-        self._initialize(init_kmeans_ppca)
+        self._initialize(init_ppca)
 
-    def _initialize(self,init_kmeans_ppca,maxiter=200, tol=1e-4):
+    def _initialize(self,init_ppca,maxiter=200, tol=1e-4):
 
         # Run K-means
         # This is crazy, but DFM's kmeans returns nans/infs 
@@ -88,7 +88,7 @@ class Mofa(object):
         self.amps = np.random.rand(self.K)
         self.amps /= np.sum(self.amps)
 
-        if init_kmeans_ppca:
+        if init_ppca:
 
             # for each cluster, run a PPCA
             for k in range(self.K):
