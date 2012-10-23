@@ -2,7 +2,7 @@
 
 import os
 import sys
-import mofa
+
 
 try:
     from setuptools import setup, Extension
@@ -24,12 +24,12 @@ algorithms_ext = Extension("mofa._algorithms", ["mofa/_algorithms.c"])
 
 setup(
     name="mofa",
-    version=mofa.__version__,
+    version="0.0.2",
     author="Ross Fadely, David W. Hogg & Dan Foreman-Mackey",
     packages=["mofa"],
     url="https://github.com/rossfadely/mofa",
     license="MIT",  # Short name of license.
-    description=mofa.__doc__,
+    description="Mixture of factor analyzers",
     long_description=open("README.rst").read(),
     package_data={"": ["LICENSE.rst", "AUTHORS.rst"]},
     include_package_data=True,
