@@ -24,7 +24,7 @@ algorithms_ext = Extension("mofa._algorithms", ["mofa/_algorithms.c"])
 
 setup(
     name="mofa",
-    version="0.0.2",
+    version="0.0.2a",
     author="Ross Fadely, David W. Hogg & Dan Foreman-Mackey",
     packages=["mofa"],
     url="https://github.com/rossfadely/mofa",
@@ -32,6 +32,7 @@ setup(
     description="Mixture of factor analyzers",
     long_description=open("README.rst").read(),
     package_data={"": ["LICENSE.rst", "AUTHORS.rst"]},
+    ext_modules = [algorithms_ext],
     include_package_data=True,
     install_requires=["numpy", "scipy"],
     include_dirs = numpy.distutils.misc_util.get_numpy_include_dirs(),
