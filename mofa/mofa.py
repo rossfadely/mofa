@@ -36,7 +36,7 @@ class Mofa(object):
                  PPCA=False,lock_psis=False,
                  rs_clip = 0.0,
                  max_condition_number=1.e6,
-                 init_ppca=True):
+                 init=True,init_ppca=True):
 
         # required
         self.K     = K
@@ -62,7 +62,8 @@ class Mofa(object):
         self.rs          = np.zeros((self.K,self.N))
 
         # initialize
-        self._initialize(init_ppca)
+        if init:
+            self._initialize(init_ppca)
 
     def _initialize(self,init_ppca,maxiter=200, tol=1e-4):
 
