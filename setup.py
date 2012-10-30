@@ -24,7 +24,7 @@ algorithms_ext = Extension("mofa._algorithms", ["mofa/_algorithms.c"])
 
 setup(
     name="mofa",
-    version="0.0.2a",
+    version="0.0.2b",
     author="Ross Fadely, David W. Hogg & Dan Foreman-Mackey",
     packages=["mofa"],
     url="https://github.com/rossfadely/mofa",
