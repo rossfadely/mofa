@@ -30,6 +30,12 @@ Install
 
     pip install mofa
 
+If you don't want to use **pip**, build the extension in-place:
+
+::
+
+    python setup.py build_ext --inplace
+
 Examples
 --------
 
