@@ -30,7 +30,7 @@ Install
 
     pip install mofa
 
-If you don't want to use **pip**, build the extension in-place:
+If you don't want to use `pip`, build the extension in-place:
 
 ::
 
